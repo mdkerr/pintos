@@ -24,6 +24,9 @@ static int64_t ticks;
    Initialized by timer_calibrate(). */
 static unsigned loops_per_tick;
 
+/* List of threads that are waiting */
+static struct list wait_list;
+
 static intr_handler_func timer_interrupt;
 static bool too_many_loops (unsigned loops);
 static void busy_wait (int64_t loops);
@@ -37,6 +40,8 @@ timer_init (void)
 {
   pit_configure_channel (0, 2, TIMER_FREQ);
   intr_register_ext (0x20, timer_interrupt, "8254 Timer");
+
+  list_init (&wait_list);
 }
 
 /* Calibrates loops_per_tick, used to implement brief delays. */
@@ -89,20 +94,22 @@ timer_elapsed (int64_t then)
 void
 timer_sleep (int64_t ticks) 
 {
-  int64_t start = timer_ticks ();
-  int64_t wake_up = ticks + start;
-  struct thread *t = current_thread();
-  ASSERT (intr_get_level () == INTR_ON);
+  int64_t start     = timer_ticks ();
+  struct thread *t  = thread_current();
+
   if( ticks > 0 )
     {
-    t->wake_up_ticks = wake_up;
+    t->wake_up_ticks = ticks + start;
     
-    /* Add the thread to the wait list before blocking it */
-    list_push_back( &wait_list, t->elem_wait );
+    /* add the thread to the wait list */
+    intr_disable();
+    list_push_back( &wait_list, &( t->elem_wait ) );
+    intr_enable();
 
+    ASSERT (intr_get_level () == INTR_ON);
+
+    /* block the thread */
     sema_down( &t->wait_sem );
-      //while (timer_elapsed (start) < ticks) 
-      //  thread_yield ();
     }
 }
 
@@ -177,15 +184,24 @@ timer_print_stats (void)
 }
 
 /* Timer interrupt handler. */
-static void
-timer_interrupt (struct intr_frame *args UNUSED)
+static void timer_interrupt(struct intr_frame *args UNUSED)
 {
-  ticks++;
-  thread_tick ();
-    
-    /* look at threads in the wait list and see if they need to be woken up */
-    
+ticks++;
+thread_tick ();
 
+/* look at threads in the wait list and see if they need to be woken up */
+struct list_elem *i;
+for( i = list_begin( &wait_list ); i != list_end( &wait_list ); i = list_next( i ) )
+    {
+    struct thread *t = list_entry( i, struct thread, elem_wait );
+
+    if( ticks >= t->wake_up_ticks )
+        {
+        /* unlock the thread and remove it from the wait list */
+        sema_up( &( t->wait_sem ) );
+        list_remove( i );
+        }
+    }
 }
 
 /* Returns true if LOOPS iterations waits for more than one timer
