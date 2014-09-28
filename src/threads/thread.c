@@ -320,6 +320,12 @@ thread_yield (void)
   ASSERT (!intr_context ());
 
   old_level = intr_disable ();
+  
+  //cur->status = THREAD_READY;
+  //schedule ();
+  //if (cur != idle_thread) 
+  //  list_push_back (&ready_list, &cur->elem);
+
   if (cur != idle_thread) 
     list_push_back (&ready_list, &cur->elem);
   cur->status = THREAD_READY;
@@ -357,7 +363,9 @@ thread_set_priority (int new_priority)
     /* if the maximum priority is higher than the running thread, yield */
     if( max->priority > thread_current()->priority )
         {
+        int old_level = intr_disable ();
         thread_yield();
+        intr_set_level (old_level);
         }   
 }
 

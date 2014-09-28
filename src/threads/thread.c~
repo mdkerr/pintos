@@ -320,10 +320,16 @@ thread_yield (void)
   ASSERT (!intr_context ());
 
   old_level = intr_disable ();
-  if (cur != idle_thread) 
-    list_push_back (&ready_list, &cur->elem);
+  
   cur->status = THREAD_READY;
   schedule ();
+  if (cur != idle_thread) 
+    list_push_back (&ready_list, &cur->elem);
+
+  //if (cur != idle_thread) 
+  //  list_push_back (&ready_list, &cur->elem);
+  //cur->status = THREAD_READY;
+  //schedule ();
   intr_set_level (old_level);
 }
 
@@ -357,7 +363,9 @@ thread_set_priority (int new_priority)
     /* if the maximum priority is higher than the running thread, yield */
     if( max->priority > thread_current()->priority )
         {
+        int old_level = intr_disable ();
         thread_yield();
+        intr_set_level (old_level);
         }   
 }
 
@@ -510,10 +518,17 @@ alloc_frame (struct thread *t, size_t size)
 static struct thread *
 next_thread_to_run (void) 
 {
-if (list_empty (&ready_list))
+  if (list_empty (&ready_list))
     return idle_thread;
-else
-    return list_entry (list_pop_front (&ready_list), struct thread, elem);
+  else
+    {
+    //return list_entry (list_pop_front (&ready_list), struct thread, elem);
+    struct list_elem *e = list_max( &ready_list, priority_less, NULL );
+    struct thread *ret = list_entry( e, struct thread, elem );
+    list_remove( e );
+    return ret;
+    }
+    
 }
 
 

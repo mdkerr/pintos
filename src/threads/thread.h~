@@ -95,9 +95,6 @@ struct thread
     struct list_elem elem;              /* List element. */
     struct list_elem elem_wait;         /* Wait list element */
 
-    struct thread* donated_to;          /* thread that holds a lock this thread needs */
-    struct thread* donated_from;        /* thread that depends on a lock this thread holds */
-
     struct semaphore wait_sem;          /* semaphore to lock this thread */
     int wake_up_ticks;                  /* ticks it will be woken up at */
 #ifdef USERPROG

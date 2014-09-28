@@ -89,11 +89,13 @@ struct thread
     char name[16];                      /* Name (for debugging purposes). */
     uint8_t *stack;                     /* Saved stack pointer. */
     int priority;                       /* Priority. */
+    int old_priority;                   /* The threads priority before donation */
     struct list_elem allelem;           /* List element for all threads list. */
 
     /* Shared between thread.c and synch.c. */
     struct list_elem elem;              /* List element. */
     struct list_elem elem_wait;         /* Wait list element */
+    struct list_elem elem_pri;          /* Priority list elemt */
 
     struct semaphore wait_sem;          /* semaphore to lock this thread */
     int wake_up_ticks;                  /* ticks it will be woken up at */

@@ -32,6 +32,9 @@
 #include "threads/interrupt.h"
 #include "threads/thread.h"
 
+void donate( struct lock* );
+static bool priority_less (const struct list_elem *a_, const struct list_elem *b_, void *aux UNUSED);
+
 /* Initializes semaphore SEMA to VALUE.  A semaphore is a
    nonnegative integer along with two atomic operators for
    manipulating it:
@@ -111,11 +114,11 @@ sema_up (struct semaphore *sema)
   enum intr_level old_level;
 
   ASSERT (sema != NULL);
-
   old_level = intr_disable ();
-  if (!list_empty (&sema->waiters)) 
-    thread_unblock (list_entry (list_pop_front (&sema->waiters),
-                                struct thread, elem));
+
+  if ( !list_empty( &sema->waiters ) ) 
+    thread_unblock( list_entry( list_pop_front( &sema->waiters ), struct thread, elem ) );
+
   sema->value++;
   intr_set_level (old_level);
 }
@@ -179,6 +182,7 @@ lock_init (struct lock *lock)
 
   lock->holder = NULL;
   sema_init (&lock->semaphore, 1);
+  list_init( &lock->waiters );
 }
 
 /* Acquires LOCK, sleeping until it becomes available if
@@ -189,23 +193,31 @@ lock_init (struct lock *lock)
    interrupt handler.  This function may be called with
    interrupts disabled, but interrupts will be turned back on if
    we need to sleep. */
-void
-lock_acquire (struct lock *lock)
+void lock_acquire (struct lock *lock)
 {
 ASSERT (lock != NULL);
 ASSERT (!intr_context ());
 ASSERT (!lock_held_by_current_thread (lock));
 
-sema_down (&lock->semaphore);
-lock->holder = thread_current ();
+if( sema_try_down(&lock->semaphore) )
+    {
+    lock->holder = thread_current ();
+    }
+else
+    {
+    //add current thread to the locks wait list
+    list_push_front( &( lock->waiters ), &( thread_current()->elem_pri ) );
+    //make the thread holding the lock be the next to run by donating priority
+    donate( lock );
+    }
 }
+
 /* Tries to acquires LOCK and returns true if successful or false
 on failure. The lock must not already be held by the current
 thread.
 This function will not sleep, so it may be called within an
 interrupt handler. */
-bool
-lock_try_acquire (struct lock *lock)
+bool lock_try_acquire (struct lock *lock)
 {
 bool success;
 
@@ -333,4 +345,35 @@ cond_broadcast (struct condition *cond, struct lock *lock)
 
   while (!list_empty (&cond->waiters))
     cond_signal (cond, lock);
+}
+
+void donate( struct lock* l )
+{
+//store the old priority
+l->holder->old_priority = l->holder->priority;
+
+//get the max thread in the locks waitlist
+struct list_elem *e = list_max( &( l->waiters ), priority_less, NULL );
+struct thread *t = list_entry( e, struct thread, elem );
+
+//donate that priority to the holder
+l->holder->priority = t->priority;
+
+//yield the current thread so the holder can run
+int old_level = intr_disable ();
+thread_yield();
+intr_set_level (old_level);
+}
+
+
+/* Returns true if value A is less than value B, false
+   otherwise. */
+static bool
+priority_less (const struct list_elem *a_, const struct list_elem *b_,
+            void *aux UNUSED) 
+{
+  const struct thread *a = list_entry (a_, struct thread, elem);
+  const struct thread *b = list_entry (b_, struct thread, elem);
+  
+  return( a->priority < b->priority );
 }
