@@ -71,6 +71,10 @@ static void schedule (void);
 void thread_schedule_tail (struct thread *prev);
 static tid_t allocate_tid (void);
 
+static bool
+priority_less (const struct list_elem *a_, const struct list_elem *b_,
+            void *aux UNUSED);
+
 /* Initializes the threading system by transforming the code
    that's currently running into a thread.  This can't work in
    general and it is possible in this case only because loader.S
@@ -272,7 +276,7 @@ thread_current (void)
      recursion can cause stack overflow. */
   ASSERT (is_thread (t));
   ASSERT (t->status == THREAD_RUNNING);
-
+    
   return t;
 }
 
@@ -300,6 +304,7 @@ thread_exit (void)
   intr_disable ();
   list_remove (&thread_current()->allelem);
   thread_current ()->status = THREAD_DYING;
+
   schedule ();
   NOT_REACHED ();
 }
@@ -343,7 +348,17 @@ thread_foreach (thread_action_func *func, void *aux)
 void
 thread_set_priority (int new_priority) 
 {
-  thread_current ()->priority = new_priority;
+    thread_current ()->priority = new_priority;
+
+    /* get the maximum priority in the list of ready threads */
+    struct list_elem *e = list_max( &ready_list, priority_less, NULL );
+    struct thread *max = list_entry( e, struct thread, elem );
+
+    /* if the maximum priority is higher than the running thread, yield */
+    if( max->priority > thread_current()->priority )
+        {
+        thread_yield();
+        }   
 }
 
 /* Returns the current thread's priority. */
@@ -498,8 +513,29 @@ next_thread_to_run (void)
   if (list_empty (&ready_list))
     return idle_thread;
   else
-    return list_entry (list_pop_front (&ready_list), struct thread, elem);
+    {
+    //return list_entry (list_pop_front (&ready_list), struct thread, elem);
+    struct list_elem *e = list_max( &ready_list, priority_less, NULL );
+    struct thread *ret = list_entry( e, struct thread, elem );
+    list_remove( e );
+    return ret;
+    }
+    
 }
+
+
+/* Returns true if value A is less than value B, false
+   otherwise. */
+static bool
+priority_less (const struct list_elem *a_, const struct list_elem *b_,
+            void *aux UNUSED) 
+{
+  const struct thread *a = list_entry (a_, struct thread, elem);
+  const struct thread *b = list_entry (b_, struct thread, elem);
+  
+  return( a->priority < b->priority );
+}
+
 
 /* Completes a thread switch by activating the new thread's page
    tables, and, if the previous thread is dying, destroying it.
