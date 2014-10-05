@@ -182,7 +182,6 @@ lock_init (struct lock *lock)
 
   lock->holder = NULL;
   sema_init (&lock->semaphore, 1);
-  list_init( &lock->waiters );
 }
 
 /* Acquires LOCK, sleeping until it becomes available if
@@ -205,10 +204,8 @@ if( sema_try_down(&lock->semaphore) )
     }
 else
     {
-    //add current thread to the locks wait list
-    list_push_front( &( lock->waiters ), &( thread_current()->elem_pri ) );
-    //make the thread holding the lock be the next to run by donating priority
     donate( lock );
+    sema_down( &lock->semaphore );
     }
 }
 
@@ -240,6 +237,17 @@ lock_release (struct lock *lock)
 {
   ASSERT (lock != NULL);
   ASSERT (lock_held_by_current_thread (lock));
+
+  if( !( list_empty( &lock->holder->doners ) ) )
+    {
+    //get the max priority in the doners list and set it to our priority
+    enum intr_level old_level = intr_disable ();
+    struct list_elem *e = list_max( &lock->holder->doners, priority_less, NULL );
+    struct thread *t = list_entry( e, struct thread, elem );
+    lock->holder->priority = t->priority;
+    list_remove( e );
+    intr_set_level (old_level);
+    }
 
   lock->holder = NULL;
   sema_up (&lock->semaphore);
@@ -349,20 +357,22 @@ cond_broadcast (struct condition *cond, struct lock *lock)
 
 void donate( struct lock* l )
 {
-//store the old priority
-l->holder->old_priority = l->holder->priority;
+//store our old priority if no one has donated to us
+if( list_empty( &l->holder->doners ) )
+    {
+    l->holder->old_priority = l->holder->priority;
+    }
 
-//get the max thread in the locks waitlist
-struct list_elem *e = list_max( &( l->waiters ), priority_less, NULL );
-struct thread *t = list_entry( e, struct thread, elem );
-
-//donate that priority to the holder
-l->holder->priority = t->priority;
-
-//yield the current thread so the holder can run
-int old_level = intr_disable ();
-thread_yield();
+//add the current thread to the lock holders doners list
+enum intr_level old_level = intr_disable ();
+list_push_front( &l->holder->doners, &thread_current()->elem_pri );
 intr_set_level (old_level);
+
+//donate priority to the lock holder
+if( thread_current()->priority > l->holder->priority )
+    {
+    l->holder->priority = thread_current()->priority;
+    }
 }
 
 

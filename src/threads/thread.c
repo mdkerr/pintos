@@ -320,16 +320,12 @@ thread_yield (void)
   ASSERT (!intr_context ());
 
   old_level = intr_disable ();
-  
-  //cur->status = THREAD_READY;
-  //schedule ();
-  //if (cur != idle_thread) 
-  //  list_push_back (&ready_list, &cur->elem);
 
   if (cur != idle_thread) 
     list_push_back (&ready_list, &cur->elem);
   cur->status = THREAD_READY;
   schedule ();
+
   intr_set_level (old_level);
 }
 
@@ -363,9 +359,9 @@ thread_set_priority (int new_priority)
     /* if the maximum priority is higher than the running thread, yield */
     if( max->priority > thread_current()->priority )
         {
-        int old_level = intr_disable ();
+        //int old_level = intr_disable ();
         thread_yield();
-        intr_set_level (old_level);
+        //intr_set_level (old_level);
         }   
 }
 
@@ -491,6 +487,7 @@ init_thread (struct thread *t, const char *name, int priority)
   strlcpy (t->name, name, sizeof t->name);
   t->stack = (uint8_t *) t + PGSIZE;
   t->priority = priority;
+  list_init( &t->doners );
   t->magic = THREAD_MAGIC;
   sema_init( &( t->wait_sem ), 0 );
   t->wake_up_ticks = 0;
