@@ -251,6 +251,13 @@ thread_unblock (struct thread *t)
   ASSERT (t->status == THREAD_BLOCKED);
   list_push_back (&ready_list, &t->elem);
   t->status = THREAD_READY;
+
+  if( t->priority > thread_current()->priority )
+    {
+//    printf( "thread_unblock is calling thread_yield\n" );
+    thread_yield();
+    }
+
   intr_set_level (old_level);
 }
 
@@ -347,22 +354,35 @@ thread_foreach (thread_action_func *func, void *aux)
 }
 
 /* Sets the current thread's priority to NEW_PRIORITY. */
-void
-thread_set_priority (int new_priority) 
+void thread_set_priority( int new_priority ) 
 {
-    thread_current ()->priority = new_priority;
+    struct thread *cur = thread_current();
+    cur->priority = new_priority;
+
+//    if( cur->priority == new_priority )
+//        {
+//        msg( "cur priority == new priority\n" );
+//        }
+
+    //printf( "list size : %d\n", list_size( &ready_list ) );
+    //printf( "new priority : %d\n", new_priority );
+    //printf( "current thread priority : %d\n", cur->priority );
 
     /* get the maximum priority in the list of ready threads */
     struct list_elem *e = list_max( &ready_list, priority_less, NULL );
     struct thread *max = list_entry( e, struct thread, elem );
 
+    //printf( "current thread priority : %d\n", cur->priority );
+    //printf( "max thread priority : %d\n", max->priority );
+
     /* if the maximum priority is higher than the running thread, yield */
-    if( max->priority > thread_current()->priority )
+    if( max->priority > cur->priority )
         {
+        //printf( "thread set priority is calling thread_yield\n" );
         //int old_level = intr_disable ();
         thread_yield();
         //intr_set_level (old_level);
-        }   
+        }
 }
 
 /* Returns the current thread's priority. */

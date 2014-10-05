@@ -248,6 +248,10 @@ lock_release (struct lock *lock)
     list_remove( e );
     intr_set_level (old_level);
     }
+  else
+    {
+    lock->holder->priority = lock->holder->old_priority;
+    }
 
   lock->holder = NULL;
   sema_up (&lock->semaphore);
@@ -363,14 +367,14 @@ if( list_empty( &l->holder->doners ) )
     l->holder->old_priority = l->holder->priority;
     }
 
-//add the current thread to the lock holders doners list
-enum intr_level old_level = intr_disable ();
-list_push_front( &l->holder->doners, &thread_current()->elem_pri );
-intr_set_level (old_level);
-
 //donate priority to the lock holder
 if( thread_current()->priority > l->holder->priority )
     {
+    //add the current thread to the lock holders doners list
+    enum intr_level old_level = intr_disable ();
+    list_push_front( &l->holder->doners, &thread_current()->elem_pri );
+    intr_set_level (old_level);
+
     l->holder->priority = thread_current()->priority;
     }
 }
