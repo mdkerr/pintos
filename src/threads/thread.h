@@ -92,8 +92,10 @@ struct thread
     int old_priority;                   /* old priority */
     struct list_elem allelem;           /* List element for all threads list. */
 
-    struct list_elem elem_pri;          /* element on the doners list of another thread */
+    struct list_elem elem_pri;          /* element on the doners list of another thread */       
     struct list doners;                 /* list of threads that have donated to us */
+    struct thread * donee;              /* the thread we have donated to */
+    struct lock * lock_trying;          /* the lock we have failed to aquire, and donated priority to another thread because of */
 
     /* Shared between thread.c and synch.c. */
     struct list_elem elem;              /* List element. */
@@ -133,6 +135,7 @@ const char *thread_name (void);
 
 void thread_exit (void) NO_RETURN;
 void thread_yield (void);
+void thread_yield_priority( void );
 
 /* Performs some operation on thread t, given auxiliary data AUX. */
 typedef void thread_action_func (struct thread *t, void *aux);
