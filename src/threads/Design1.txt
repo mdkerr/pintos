@@ -29,14 +29,25 @@ Wesley Good <wjgood@ksu.edu>
 >> `struct' member, global or static variable, `typedef', or
 >> enumeration.  Identify the purpose of each in 25 words or less.
 
+In thread.h, struct thread additions:
+    struct list_elem elem_wait;         /* Wait list element */
+    struct semaphore wait_sem;          /* semaphore to lock this thread for waiting */
+    int wake_up_ticks;                  /* ticks it will be woken up at */
 
 ---- ALGORITHMS ----
 
 >> A2: Briefly describe what happens in a call to your timer_sleep(),
 >> including the effects of the timer interrupt handler.
 
+When timer sleep is called we store the ticks that the thread will be woken up at, put the threads wait element on the wait list, and then sema_down the wait semaphore to block the thread.
+When timer interrupt is called we check each thread that is on the wait list to see if it needs to be woken up by looking at the ticks to be woken up at we stored earlier.
+If the thread needs to be woken up we sema_up the wait semaphore to unblock it.
+
 >> A3: What steps are taken to minimize the amount of time spent in
 >> the timer interrupt handler?
+
+We only need to check the threads that are in the wait list.
+Only one check between the current ticks and ticks to be woken up at is needed to see if the thread needs to be woken up.
 
 
 ---- SYNCHRONIZATION ----
@@ -44,16 +55,20 @@ Wesley Good <wjgood@ksu.edu>
 >> A4: How are race conditions avoided when multiple threads call
 >> timer_sleep() simultaneously?
 
+When we are making changes to the wait list interrups are disabled, so timer_interrupt cannot be called during this time and modify the wait list
 
 >> A5: How are race conditions avoided when a timer interrupt occurs
 >> during a call to timer_sleep()?
 
+interrupts are disabled when the current threads wait element is pushed onto the wait list
 
 ---- RATIONALE ----
 
 >> A6: Why did you choose this design?  In what ways is it superior to
 >> other designs that you considered?
 
+The way we are doing it is simple, simple is good.
+Making things simple results in very few conditions that need to be checked.
 
 
              PRIORITY SCHEDULING
@@ -65,19 +80,35 @@ Wesley Good <wjgood@ksu.edu>
 >> `struct' member, global or static variable, `typedef', or
 >> enumeration.  Identify the purpose of each in 25 words or less.
 
->> B2: Explain the data structure used to track priority donation.
+In thread.h, struct thread additions:
+    int old_priority;                   /* old priority to be reset to once donation is complete*/
+    struct list_elem elem_pri;          /* element on the doners list of another thread */       
+    struct list doners;                 /* list of threads that have donated to us */
+    struct thread * donee;              /* the thread we have donated to */
+    struct lock * lock_trying;          /* the lock we have failed to aquire, and donated priority to another thread because of */
 
+>> B2: Explain the data structure used to track priority donation.
+    Each thread has a list of doners, and a single donee. If a thread is donated to it stores a pointer to the thread that is donating to it in its doners list, and stores its old priority if it does not have any other doners. Then the donee is stored by the doner, and the donees priority, as well as the donee's donee (if any) priority, is increased to the doners priority.
 
 ---- ALGORITHMS ----
 
 >> B3: How do you ensure that the highest priority thread waiting for
 >> a lock, semaphore, or condition variable wakes up first?
 
+Whenever a thread is woken up or created we have a function that yields to higher priority threads.
+If the current thread at any point is not the max priority thread anymore it will yield.
+
 >> B4: Describe the sequence of events when a call to lock_acquire()
 >> causes a priority donation.  How is nested donation handled?
 
+In lock acquire we attempt to sema_down, if that fails we start the donation process because that means another thread has the lock.
+Whenever we are setting the donee's priority we do so recursively, that way all the affected threads priorities will be updated
+
 >> B5: Describe the sequence of events when lock_release() is called
 >> on a lock that a higher-priority thread is waiting for.
+
+If the thread that is releasing the lock has doners, we have to loop through all of the doners and remove them from the list if they are trying to acquire the lock that is being released.
+Once that is done, we check to see if there are any threads left over in the doners list, if there arent we reset our priority to our old_priority. If there are still threads in the doners list we set our priority to the new maximum priority in the list.
 
 ---- SYNCHRONIZATION ----
 
@@ -85,10 +116,14 @@ Wesley Good <wjgood@ksu.edu>
 >> how your implementation avoids it.  Can you use a lock to avoid
 >> this race?
 
+If we have doners we cant set our priorty, we have to store it to be reset to once the donation is done.
+
 ---- RATIONALE ----
 
 >> B7: Why did you choose this design?  In what ways is it superior to
 >> another design you considered?
+
+I think our implementation simple and easy to understand.
 
 
               ADVANCED SCHEDULER [EXTRA CREDIT]
