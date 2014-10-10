@@ -114,7 +114,6 @@ thread_start (void)
 
   /* Start preemptive thread scheduling. */
   intr_enable ();
-
   /* Wait for the idle thread to initialize idle_thread. */
   sema_down (&idle_started);
 }
@@ -319,11 +318,8 @@ void
 thread_yield (void) 
 {
   struct thread *cur = thread_current ();
-  enum intr_level old_level;
-  
-  ASSERT (!intr_context ());
 
-  old_level = intr_disable ();
+  enum intr_level old_level = intr_disable ();
 
   if (cur != idle_thread) 
     list_push_back (&ready_list, &cur->elem);
@@ -487,7 +483,6 @@ init_thread (struct thread *t, const char *name, int priority)
   t->stack = (uint8_t *) t + PGSIZE;
   t->priority = priority;
   list_init( &t->doners );
-  //list_init( &t->donees );
   t->lock_trying = NULL;
   t->magic = THREAD_MAGIC;
   sema_init( &( t->wait_sem ), 0 );
@@ -520,7 +515,6 @@ next_thread_to_run (void)
     return idle_thread;
   else
     {
-    //return list_entry (list_pop_front (&ready_list), struct thread, elem);
     struct list_elem *e = list_max( &ready_list, priority_less, NULL );
     struct thread *ret = list_entry( e, struct thread, elem );
     list_remove( e );
@@ -623,6 +617,7 @@ struct thread *max = list_entry( e, struct thread, elem );
 if( !list_empty( &ready_list )
  && max->priority > thread_current()->priority )
     {
+    intr_set_level( old_level );
     thread_yield();
     }
 

@@ -94,6 +94,7 @@ timer_elapsed (int64_t then)
 void
 timer_sleep (int64_t ticks) 
 {
+  enum intr_level old_level = intr_disable();
   int64_t start     = timer_ticks ();
   struct thread *t  = thread_current();
 
@@ -102,15 +103,14 @@ timer_sleep (int64_t ticks)
     t->wake_up_ticks = ticks + start;
     
     /* add the thread to the wait list */
-    intr_disable();
     list_push_back( &wait_list, &( t->elem_wait ) );
-    intr_enable();
 
     ASSERT (intr_get_level () == INTR_ON);
 
     /* block the thread */
     sema_down( &t->wait_sem );
     }
+  intr_set_level( old_level );
 }
 
 /* Sleeps for approximately MS milliseconds.  Interrupts must be
@@ -197,10 +197,9 @@ for( i = list_begin( &wait_list ); i != list_end( &wait_list ); i = list_next( i
 
     if( ticks >= t->wake_up_ticks )
         {
-        /* remove from wait list, put in ready list, unlock the semaphore,  */
-        list_remove( i );
-        list_push_front( ready_list, t->elem );
+        /* unlock the thread and remove it from the wait list */
         sema_up( &( t->wait_sem ) );
+        list_remove( i );
         }
     }
 }

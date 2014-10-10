@@ -94,6 +94,7 @@ timer_elapsed (int64_t then)
 void
 timer_sleep (int64_t ticks) 
 {
+  enum intr_level old_level;
   int64_t start     = timer_ticks ();
   struct thread *t  = thread_current();
 
@@ -102,10 +103,10 @@ timer_sleep (int64_t ticks)
     t->wake_up_ticks = ticks + start;
     
     /* add the thread to the wait list */
-    intr_disable();
+    old_level = intr_disable();
     list_push_back( &wait_list, &( t->elem_wait ) );
-    intr_enable();
-
+    intr_set_level( old_level );
+    
     ASSERT (intr_get_level () == INTR_ON);
 
     /* block the thread */
