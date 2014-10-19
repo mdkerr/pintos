@@ -239,7 +239,7 @@ load (const char *file_name, void (**eip) (void), void **esp)
     
     if( token == NULL ) break;
 
-    p_args[ i ] = token;    
+    p_args[ i ] = token;
     }
 
   /* Open executable file. */
