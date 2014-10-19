@@ -25,30 +25,33 @@ static bool load (const char *cmdline, void (**eip) (void), void **esp);
    FILENAME.  The new thread may be scheduled (and may even exit)
    before process_execute() returns.  Returns the new process's
    thread id, or TID_ERROR if the thread cannot be created. */
-tid_t
-process_execute (const char *file_name) 
+tid_t process_execute (const char *file_name) 
 {
-  char *fn_copy;
-  tid_t tid;
+    char *fn_copy;
+    tid_t tid;
 
-  /* Make a copy of FILE_NAME.
+    /* Make a copy of FILE_NAME.
      Otherwise there's a race between the caller and load(). */
-  fn_copy = palloc_get_page (0);
-  if (fn_copy == NULL)
-    return TID_ERROR;
-  strlcpy (fn_copy, file_name, PGSIZE);
+    fn_copy = palloc_get_page (0);
+    if (fn_copy == NULL)
+        {
+        return TID_ERROR;
+        }
+    strlcpy (fn_copy, file_name, PGSIZE);
 
-  /* Create a new thread to execute FILE_NAME. */
-  tid = thread_create (file_name, PRI_DEFAULT, start_process, fn_copy);
-  if (tid == TID_ERROR)
-    palloc_free_page (fn_copy); 
-  return tid;
+    /* Create a new thread to execute FILE_NAME. */
+    tid = thread_create( file_name, PRI_DEFAULT, start_process, fn_copy );
+    if (tid == TID_ERROR)
+        {
+        palloc_free_page (fn_copy); 
+        }
+
+    return tid;
 }
 
 /* A thread function that loads a user process and starts it
    running. */
-static void
-start_process (void *file_name_)
+static void start_process( void *file_name_ )
 {
   char *file_name = file_name_;
   struct intr_frame if_;
@@ -221,11 +224,29 @@ load (const char *file_name, void (**eip) (void), void **esp)
     goto done;
   process_activate ();
 
+  /* parse file_name into filename and arguments */
+  char* p_file;
+  char* p_args[ 3 ];
+
+  char* token;
+  char* save_ptr;
+  
+  p_file = strtok_r( file_name, " ", save_ptr );
+
+  for( int i = 0; i < 3; i++ )
+    {
+    token = strtok_r( NULL, " ", save_ptr );
+    
+    if( token == NULL ) break;
+
+    p_args[ i ] = token;    
+    }
+
   /* Open executable file. */
-  file = filesys_open (file_name);
+  file = filesys_open (p_file);
   if (file == NULL) 
     {
-      printf ("load: %s: open failed\n", file_name);
+      printf ("load: %s: open failed\n", p_file);
       goto done; 
     }
 
@@ -304,6 +325,8 @@ load (const char *file_name, void (**eip) (void), void **esp)
   /* Set up stack. */
   if (!setup_stack (esp))
     goto done;
+
+  //todo - push arguments onto stack in reverse order
 
   /* Start address. */
   *eip = (void (*) (void)) ehdr.e_entry;
