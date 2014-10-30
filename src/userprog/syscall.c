@@ -60,19 +60,19 @@ syscall_handler (struct intr_frame *f UNUSED)
     /* Table of system calls. */
     static const struct syscall syscall_table[] =
 		{
-		//{0, (syscall_function *) sys_halt},
-		//{1, (syscall_function *) sys_exit},
-		//{1, (syscall_function *) sys_exec},
-		//{1, (syscall_function *) sys_wait},
-		//{2, (syscall_function *) sys_create},
-		//{1, (syscall_function *) sys_remove},
+		{0, (syscall_function *) sys_halt},
+		{1, (syscall_function *) sys_exit},
+		{1, (syscall_function *) sys_exec},
+		{1, (syscall_function *) sys_wait},
+		{2, (syscall_function *) sys_create},
+		{1, (syscall_function *) sys_remove},
 		{1, (syscall_function *) sys_open},
-		//{1, (syscall_function *) sys_filesize},
-		//{2, (syscall_function *) sys_read},
-		//{3, (syscall_function *) sys_write},
-		//{2, (syscall_function *) sys_seek},
-		//{1, (syscall_function *) sys_tell},
-		//{1, (syscall_function *) sys_close}
+		{1, (syscall_function *) sys_filesize},
+		{2, (syscall_function *) sys_read},
+		{3, (syscall_function *) sys_write},
+		{2, (syscall_function *) sys_seek},
+		{1, (syscall_function *) sys_tell},
+		{1, (syscall_function *) sys_close}
 		};
 
     const struct syscall *sc;
