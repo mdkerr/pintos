@@ -2,6 +2,6 @@
 #define USERPROG_SYSCALL_H
 
 void syscall_init (void);
-int sys_open (const char *ufile);
+void syscall_exit (void);
 
 #endif /* userprog/syscall.h */
