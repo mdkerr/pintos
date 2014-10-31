@@ -139,7 +139,20 @@ release_child (struct wait_status *cs)
 int
 process_wait (tid_t child_tid) 
 {
-  return -1;
+    struct thread* cur;
+    struct list_elem *e;
+
+    cur = thread_current();
+
+    for (e = list_begin (&cur->children); e != list_end (&cur->children);
+       e = list_next (e))
+    {
+        struct wait_status *f = list_entry (e, struct wait_status, elem);
+    
+        //MDK TODO
+    }
+
+    return -1;
 }
 
 /* Free the current process's resources. */
@@ -518,14 +531,9 @@ int i;
 
 for( i = 0; i < (argc / 2); i++ )
 	{
-	temp = argv[ i ];
-	//printf( "%s", temp );
-	
-	argv[ i ] = argv[ argc - i - 1 ];
-	//printf( "%s", argv[ i ] );
-	
+	temp = argv[ i ];	
+	argv[ i ] = argv[ argc - i - 1 ];	
 	argv[ argc - i - 1 ] = temp;
-	//printf( "%s", argv[ argc - i - 1 ] );
 	}
 
 return;
