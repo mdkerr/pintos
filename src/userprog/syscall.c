@@ -30,6 +30,8 @@ static int sys_close (int handle);
  
 static void syscall_handler (struct intr_frame *);
 static void copy_in (void *, const void *, size_t);
+
+static bool verify_user (const void *uaddr);
  
 /* Serializes file system operations. */
 static struct lock fs_lock;
@@ -80,7 +82,6 @@ syscall_handler (struct intr_frame *f UNUSED)
     int args[3];
 
     /* Get the system call. */
-    // similar to copy_in_string, need to allocate a page or soemthing
     copy_in (&call_nr, f->esp, sizeof call_nr);
 
     if (call_nr >= sizeof syscall_table / sizeof *syscall_table)
@@ -94,6 +95,25 @@ syscall_handler (struct intr_frame *f UNUSED)
     ASSERT (sc->arg_cnt <= sizeof args / sizeof *args);
     memset (args, 0, sizeof args);
     copy_in (args, (uint32_t *) f->esp + 1, sizeof *args * sc->arg_cnt);
+
+    
+    /* Check for invalid pointeres */
+    /* TODO
+    switch( call_nr )
+        {
+        case SYS_EXEC:
+        case SYS_CREATE:
+        case SYS_REMOVE:
+        case SYS_OPEN:
+            if( !verify_user( args[ 0 ] ) ) return;
+            break;
+
+        case SYS_READ:
+        case SYS_WRITE:
+            if( !verify_user( args[ 1 ] ) ) return;
+            break;
+        }
+    */
 
     /* Execute the system call,
     and set the return value. */
@@ -218,14 +238,26 @@ return process_wait( child );
 static int
 sys_create (const char *ufile, unsigned initial_size) 
 {
-  return 0;
+    bool ret;
+
+    lock_acquire (&fs_lock);
+    ret = filesys_create( ufile, initial_size );
+    lock_release (&fs_lock);
+
+    return ret;
 }
  
 /* Remove system call. */
 static int
 sys_remove (const char *ufile) 
 {
-/* Add code */
+    bool ret;
+
+    lock_acquire (&fs_lock);
+    ret = filesys_remove( ufile );
+    lock_release (&fs_lock);
+
+    return ret;
 }
  
 /* A file descriptor, for binding a file handle to a file. */
@@ -269,8 +301,23 @@ sys_open (const char *ufile)
 static struct file_descriptor *
 lookup_fd (int handle)
 {
-/* Add code to lookup file descriptor in the current thread's fds */
-  thread_exit ();
+    struct thread* cur;
+    struct file_descriptor* fd;
+    struct list_elem* e;
+
+    cur = thread_current();
+
+    for (e = list_begin (&cur->fds); e != list_end (&cur->fds); e = list_next (e))
+        {
+        fd = list_entry (e, struct file_descriptor, elem);
+
+        if( fd->handle == handle )
+            {
+            return fd;
+            }
+        }
+
+    thread_exit();
 }
  
 /* Filesize system call. */
@@ -285,8 +332,9 @@ sys_filesize (int handle)
 static int
 sys_read (int handle, void *udst_, unsigned size) 
 {
-/* Add code */
-  thread_exit ();
+    struct file_descriptor* fd;
+    fd = lookup_fd( handle );
+    return( file_read( fd->file, udst_, size ) );
 }
  
 /* Write system call. */
