@@ -140,17 +140,25 @@ int
 process_wait (tid_t child_tid) 
 {
     struct thread* cur;
-    struct list_elem *e;
+    struct list_elem* e;
+    struct wait_status* ws;
 
     cur = thread_current();
 
-    for (e = list_begin (&cur->children); e != list_end (&cur->children);
-       e = list_next (e))
-    {
-        struct wait_status *f = list_entry (e, struct wait_status, elem);
+    for (e = list_begin (&cur->children); e != list_end (&cur->children); e = list_next (e))
+        {
+        ws = list_entry (e, struct wait_status, elem);
     
-        //MDK TODO
-    }
+        if( ws->tid == child_tid )
+            {
+            if( !sema_try_down( &ws->dead ) )
+                {
+                sema_down( &ws->dead );
+                }
+            list_remove( e );
+            return ws->exit_code;
+            }
+        }
 
     return -1;
 }
@@ -172,6 +180,7 @@ process_exit (void)
       struct wait_status *cs = cur->wait_status;
 
       /* add code */
+      sema_up( &cs->dead );
       printf ("%s: exit(0)\n", cur->name); // HACK all successful ;-)
 
       release_child (cs);
