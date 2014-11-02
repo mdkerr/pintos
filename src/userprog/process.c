@@ -179,9 +179,8 @@ process_exit (void)
     {
       struct wait_status *cs = cur->wait_status;
 
-      /* add code */
       sema_up( &cs->dead );
-      printf ("%s: exit(0)\n", cur->name); // HACK all successful ;-)
+      printf( "%s: exit(%d)\n", cur->name, cur->wait_status->exit_code );
 
       release_child (cs);
     }

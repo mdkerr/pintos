@@ -196,16 +196,22 @@ sys_exit (int exit_code)
 static int
 sys_exec (const char *ufile) 
 {
-/* Add code */
-  thread_exit ();
+  int id;
+  char *kfile = copy_in_string (ufile);
+ 
+  lock_acquire (&fs_lock);
+  id = process_execute( kfile );
+  palloc_free_page (kfile);
+  lock_release (&fs_lock);
+
+  return id;
 }
  
 /* Wait system call. */
 static int
 sys_wait (tid_t child) 
 {
-/* Add code */
-  thread_exit ();
+return process_wait( child );
 }
  
 /* Create system call. */
