@@ -81,6 +81,8 @@ syscall_handler (struct intr_frame *f UNUSED)
     unsigned call_nr;
     int args[3];
 
+    if( f->esp < 0x08048000 ) thread_exit();
+
     /* Get the system call. */
     copy_in (&call_nr, f->esp, sizeof call_nr);
 
@@ -98,22 +100,20 @@ syscall_handler (struct intr_frame *f UNUSED)
 
     
     /* Check for invalid pointeres */
-    /* TODO
     switch( call_nr )
         {
         case SYS_EXEC:
         case SYS_CREATE:
         case SYS_REMOVE:
         case SYS_OPEN:
-            if( !verify_user( args[ 0 ] ) ) return;
+            if( !verify_user( args[ 0 ] ) || args[ 0 ] == NULL ) thread_exit();
             break;
 
         case SYS_READ:
         case SYS_WRITE:
-            if( !verify_user( args[ 1 ] ) ) return;
+            if( !verify_user( args[ 1 ] ) || args[ 1 ] == NULL ) thread_exit();
             break;
         }
-    */
 
     /* Execute the system call,
     and set the return value. */
@@ -125,8 +125,8 @@ syscall_handler (struct intr_frame *f UNUSED)
 static bool
 verify_user (const void *uaddr) 
 {
-  return (uaddr < PHYS_BASE
-          && pagedir_get_page (thread_current ()->pagedir, uaddr) != NULL);
+  return( uaddr < PHYS_BASE
+       && pagedir_get_page (thread_current ()->pagedir, uaddr) != NULL);
 }
  
 /* Copies a byte from user address USRC to kernel address DST.
