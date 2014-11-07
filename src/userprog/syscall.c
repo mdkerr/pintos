@@ -324,8 +324,10 @@ lookup_fd (int handle)
 static int
 sys_filesize (int handle) 
 {
-/* Add code */
-  thread_exit ();
+    //TODO?
+    struct file_descriptor* fd;
+    fd = lookup_fd( handle );
+    return( sizeof( fd->file ) );
 }
  
 /* Read system call. */
@@ -413,8 +415,11 @@ sys_tell (int handle)
 static int
 sys_close (int handle) 
 {
-/* Add code */
-  thread_exit ();
+    struct file_descriptor* fd;
+    fd = lookup_fd( handle );
+    list_remove( &fd->elem );
+    file_close( fd->file );
+    return 0;
 }
  
 /* On thread exit, close all open files. */
