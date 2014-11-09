@@ -324,19 +324,37 @@ lookup_fd (int handle)
 static int
 sys_filesize (int handle) 
 {
-    //TODO?
+    //lock_acquire (&fs_lock);
+
     struct file_descriptor* fd;
     fd = lookup_fd( handle );
-    return( sizeof( fd->file ) );
+    int ret = sizeof( fd->file );
+
+    //lock_release (&fs_lock);
+    return( ret );
 }
  
 /* Read system call. */
 static int
 sys_read (int handle, void *udst_, unsigned size) 
 {
+    lock_acquire (&fs_lock);
+
     struct file_descriptor* fd;
     fd = lookup_fd( handle );
-    return( file_read( fd->file, udst_, size ) );
+
+    /*TODO
+    if( fd == 0 )
+        {
+
+        }
+    else
+    */
+    off_t ret = file_read( fd->file, udst_, size );
+
+    lock_release (&fs_lock);
+
+    return( ret );
 }
  
 /* Write system call. */
@@ -399,26 +417,32 @@ sys_write (int handle, void *usrc_, unsigned size)
 static int
 sys_seek (int handle, unsigned position) 
 {
-/* Add code */
-  thread_exit ();
+    struct file_descriptor* fd;
+    fd = lookup_fd( handle );
+    file_seek( fd->file, position );
+
+    return 0;
 }
  
 /* Tell system call. */
 static int
 sys_tell (int handle) 
 {
-/* Add code */
-  thread_exit ();
+    struct file_descriptor* fd;
+    fd = lookup_fd( handle );
+    return( file_tell( fd->file ) );
 }
  
 /* Close system call. */
 static int
 sys_close (int handle) 
 {
+    //lock_acquire (&fs_lock);
     struct file_descriptor* fd;
     fd = lookup_fd( handle );
     list_remove( &fd->elem );
     file_close( fd->file );
+    //lock_release (&fs_lock);
     return 0;
 }
  
@@ -426,6 +450,18 @@ sys_close (int handle)
 void
 syscall_exit (void) 
 {
-/* Add code */
-  return;
+    struct thread* cur;
+    struct file_descriptor* fd;
+    struct list_elem* e;
+
+    cur = thread_current();
+
+    for (e = list_begin (&cur->fds); e != list_end (&cur->fds); e = list_next (e))
+    {
+    fd = list_entry (e, struct file_descriptor, elem);
+
+    sys_close( fd->handle );
+    }
+
+    return;
 }
