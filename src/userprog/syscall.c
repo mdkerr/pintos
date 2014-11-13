@@ -70,7 +70,7 @@ syscall_handler (struct intr_frame *f UNUSED)
 		{1, (syscall_function *) sys_remove},
 		{1, (syscall_function *) sys_open},
 		{1, (syscall_function *) sys_filesize},
-		{2, (syscall_function *) sys_read},
+		{3, (syscall_function *) sys_read},
 		{3, (syscall_function *) sys_write},
 		{2, (syscall_function *) sys_seek},
 		{1, (syscall_function *) sys_tell},
@@ -328,7 +328,7 @@ sys_filesize (int handle)
 
     struct file_descriptor* fd;
     fd = lookup_fd( handle );
-    int ret = sizeof( fd->file );
+    int ret = file_length( fd->file );
 
     //lock_release (&fs_lock);
     return( ret );
@@ -338,23 +338,24 @@ sys_filesize (int handle)
 static int
 sys_read (int handle, void *udst_, unsigned size) 
 {
-    lock_acquire (&fs_lock);
+	 lock_acquire (&fs_lock);
+	off_t ret;
 
-    struct file_descriptor* fd;
-    fd = lookup_fd( handle );
-
-    /*TODO
-    if( fd == 0 )
+    if( handle == 0 )
         {
-
+			ret = file_read( input_getc(), udst_, sizeof( uint8_t) );
         }
     else
-    */
-    off_t ret = file_read( fd->file, udst_, size );
-
+	{
+	    struct file_descriptor* fd;
+		fd = lookup_fd( handle );
+		ret = file_read( fd->file, udst_, size );
+		
+	}
     lock_release (&fs_lock);
 
     return( ret );
+
 }
  
 /* Write system call. */
