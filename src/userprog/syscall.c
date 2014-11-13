@@ -81,7 +81,7 @@ syscall_handler (struct intr_frame *f UNUSED)
     unsigned call_nr;
     int args[3];
 
-    if( f->esp < 0x08048000 ) thread_exit();
+    if( !verify_user(f->esp)) thread_exit();
 
     /* Get the system call. */
     copy_in (&call_nr, f->esp, sizeof call_nr);
